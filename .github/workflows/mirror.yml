@@ -1,0 +1,74 @@
+# .github/workflows/mirror.yml
+name: Mirror to Private Repository
+
+on:
+  push:
+    branches: [ main, master, develop ]
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout source repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+        # Use personal token instead of GITHUB_TOKEN
+        token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+
+    - name: Mirror to private repository
+      env:
+        DESTINATION_REPO: ${{ secrets.DESTINATION_REPO }}
+        PERSONAL_ACCESS_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      run: |
+        # Configure git with token authentication
+        git config --global user.name "GitHub Mirror Action"
+        git config --global user.email "action@github.com"
+        
+        # Configure git credential helper to use token
+        git config --global credential.helper store
+        echo "https://$PERSONAL_ACCESS_TOKEN:x-oauth-basic@github.com" > ~/.git-credentials
+        
+        echo "🎯 Mirroring to: $DESTINATION_REPO"
+        
+        # Remove any existing destination remote
+        git remote remove destination 2>/dev/null || true
+        
+        # Add destination remote with proper authentication
+        git remote add destination "https://$PERSONAL_ACCESS_TOKEN@github.com/$DESTINATION_REPO.git"
+        
+        # Verify we can access the destination
+        echo "🔍 Testing destination access..."
+        if ! git ls-remote destination HEAD >/dev/null 2>&1; then
+          echo "❌ Cannot access destination. Trying alternative authentication..."
+          
+          # Try with x-oauth-basic format
+          git remote set-url destination "https://$PERSONAL_ACCESS_TOKEN:x-oauth-basic@github.com/$DESTINATION_REPO.git"
+          
+          if ! git ls-remote destination HEAD >/dev/null 2>&1; then
+            echo "❌ Still cannot access destination repository"
+            echo "This might be a GitHub Actions permission issue with organization repositories"
+            exit 1
+          fi
+        fi
+        
+        echo "✅ Destination access confirmed"
+        
+        # Push all branches
+        echo "🚀 Pushing branches..."
+        if ! git push destination --all --force; then
+          echo "❌ Failed to push branches"
+          exit 1
+        fi
+        
+        # Push all tags
+        echo "🏷️ Pushing tags..."
+        if ! git push destination --tags --force; then
+          echo "⚠️ Failed to push tags (this might be OK if there are no tags)"
+        fi
+        
+        echo "🎉 Mirror completed successfully!"
