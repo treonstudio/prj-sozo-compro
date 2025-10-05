@@ -64,6 +64,13 @@ export default function App() {
         console.warn('[RAD][React] cannot POST to WP because parentOrigin is unknown')
         return
       }
+
+      // Only send to production WordPress site, skip localhost
+      if (!parentOrigin.includes('sozo.treonstudio.com')) {
+        console.log('[RAD][React] skipping POST to WP (not production environment)')
+        return
+      }
+
       const url = parentOrigin.replace(/\/$/, '') + '/wp-json/react-articles/v1/height'
       const payload = { height: Math.round(height), isExpanded, ts: String(Date.now()) }
       console.log('[RAD][React] POST to WP', { url, payload })
