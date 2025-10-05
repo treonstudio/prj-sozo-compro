@@ -4,7 +4,7 @@ import { Navigation, Pagination } from 'swiper/modules'
 import 'swiper/css'
 import 'swiper/css/navigation'
 import 'swiper/css/pagination'
-import { usePosts, usePost, useFilteredPosts, usePostsByCategory } from '../hooks/usePosts'
+import { usePosts, usePost, useFilteredPosts, usePostsByCategory, useInfinitePosts, useInfinitePostsByCategory } from '../hooks/usePosts'
 import { WPPost } from '../services/api'
 import { useStore } from '../store/useStore'
 
@@ -24,14 +24,38 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
   // Feature toggle: set to true to use in-app modal reader; false to open posts in a new tab
   const ENABLE_MODAL = false
 
-  // React Query for posts - server-side fetch 10 items; refetch on category change
+  // Use infinite query for category tabs (non-carousel mode), regular query for carousel
+  const shouldUseInfiniteQuery = !enableCarousel && !!categoryId
+
+  // Infinite query for category pagination
+  const {
+    data: infiniteData,
+    isLoading: infiniteLoading,
+    error: infiniteError,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfinitePostsByCategory(
+    shouldUseInfiniteQuery ? categoryId : undefined,
+    {}
+  )
+
+  // Regular query for carousel mode or non-category views
   const {
     data: allPosts,
     isLoading: loading,
     error,
-  } = categoryId
-    ? usePostsByCategory(categoryId, { per_page: 10 })
-    : usePosts({ per_page: 10 }, { enabled: !categoryId })
+  } = usePosts(
+    { per_page: 10 },
+    { enabled: !shouldUseInfiniteQuery }
+  )
+
+  // Determine which data to use
+  const isLoading = shouldUseInfiniteQuery ? infiniteLoading : loading
+  const queryError = shouldUseInfiniteQuery ? infiniteError : error
+  const posts = shouldUseInfiniteQuery
+    ? infiniteData?.pages.flatMap(page => page) || []
+    : allPosts || []
 
   // React Query for single post modal
   const { data: modalPost, isLoading: modalLoading } = usePost(modalPostId || 0)
@@ -119,7 +143,7 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
   }
 
   // Use filtered posts; if randomize, fetch without limit, then shuffle and slice
-  const baseItems = useFilteredPosts(allPosts, {
+  const baseItems = useFilteredPosts(posts, {
     categoryName: categoryId ? undefined : categoryName,
     searchTerm,
     limit: randomize ? undefined : MAX_ITEMS,
@@ -215,7 +239,7 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
   )
 
   // Handle loading state
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="carousel-container">
         <div className="skeleton-grid">
@@ -345,8 +369,8 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
   }
 
   // Handle error state
-  if (error) {
-    return <p className="muted">Terjadi kesalahan: {error.message}</p>
+  if (queryError) {
+    return <p className="muted">Terjadi kesalahan: {queryError.message}</p>
   }
 
   // Build slides as a sliding window that moves by 1 item
@@ -436,9 +460,24 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
           ))}
         </Swiper>
       ) : (
-        <div className="static-grid">
-          {items.map(renderArticleCard)}
-        </div>
+        <>
+          <div className="static-grid">
+            {items.map(renderArticleCard)}
+          </div>
+
+          {/* Load More Button for infinite query */}
+          {shouldUseInfiniteQuery && hasNextPage && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '24px' }}>
+              <button
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="load-more-btn"
+              >
+                {isFetchingNextPage ? 'Memuat...' : 'Muat Lebih Banyak'}
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/* Custom Controls */}
@@ -561,6 +600,34 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
         .carousel-container {
           position: relative;
           margin: 16px 0;
+        }
+
+        .load-more-btn {
+          background: #1A2080;
+          color: white;
+          border: none;
+          border-radius: 999px;
+          padding: 12px 32px;
+          font-size: 16px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          box-shadow: 0 2px 8px rgba(26, 32, 128, 0.2);
+        }
+
+        .load-more-btn:hover:not(:disabled) {
+          background: #151a66;
+          box-shadow: 0 4px 12px rgba(26, 32, 128, 0.3);
+          transform: translateY(-1px);
+        }
+
+        .load-more-btn:active:not(:disabled) {
+          transform: translateY(0);
+        }
+
+        .load-more-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
 
         .articles-swiper {

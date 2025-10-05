@@ -251,18 +251,11 @@ export default function App() {
           <section aria-labelledby="category-section" className="articles-section fade-in">
             <div className="section-head">
               <h2 id="category-section">{categories?.find(c => c.slug === activeTab)?.name || categoryFromTab(activeTab)}</h2>
-              <a
-                href={`https://sozo.treonstudio.com/category/${activeTab}`}
-                className="see-all"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Lihat Semua
-              </a>
             </div>
             <AllArticleGrid
               categoryId={categories?.find(c => c.slug === activeTab)?.id}
               searchTerm={query}
+              enableCarousel={false}
             />
           </section>
         )}

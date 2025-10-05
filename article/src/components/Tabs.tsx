@@ -77,7 +77,7 @@ export const Tabs: React.FC<{
         role="tablist"
         aria-label="Kategori Artikel"
         ref={listRef}
-        style={{ overflowX: 'auto', whiteSpace: 'nowrap', scrollBehavior: 'smooth', display: 'flex', flexWrap: 'nowrap', gap: 8, paddingRight: 44, paddingLeft: 44 }}
+        style={{ overflowX: 'auto', whiteSpace: 'nowrap', scrollBehavior: 'smooth', display: 'flex', flexWrap: 'nowrap', gap: 8, paddingRight: 44 }}
       >
         {tabs.map((tab) => (
           <button
