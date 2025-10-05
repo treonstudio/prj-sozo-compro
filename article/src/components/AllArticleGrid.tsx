@@ -1,6 +1,7 @@
 import React from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
 import { Navigation, Pagination } from 'swiper/modules'
+import { ArrowLeft, ArrowRight } from 'lucide-react'
 import 'swiper/css'
 import 'swiper/css/navigation'
 import 'swiper/css/pagination'
@@ -582,8 +583,12 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
             })()}
           </div>
           <div className="navigation-buttons">
-            <button className="swiper-button-prev-custom" onClick={() => swiperRef && swiperRef.slidePrev()}>←</button>
-            <button className="swiper-button-next-custom" onClick={() => swiperRef && swiperRef.slideNext()}>→</button>
+            <button className="swiper-button-prev-custom" onClick={() => swiperRef && swiperRef.slidePrev()}>
+              <ArrowLeft size={16} strokeWidth={2.5} />
+            </button>
+            <button className="swiper-button-next-custom" onClick={() => swiperRef && swiperRef.slideNext()}>
+              <ArrowRight size={16} strokeWidth={2.5} />
+            </button>
           </div>
         </div>
       )}
@@ -810,8 +815,8 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
           background: rgba(255, 255, 255, 0.9);
           border: 1px solid var(--border);
           border-radius: 8px;
-          width: 36px;
-          height: 36px;
+          width: 40px;
+          height: 40px;
           display: flex;
           align-items: center;
           justify-content: center;
@@ -934,8 +939,8 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
 
           .swiper-button-prev-custom,
           .swiper-button-next-custom {
-            width: 32px;
-            height: 32px;
+            width: 40px;
+            height: 40px;
             font-size: 14px;
           }
         }
