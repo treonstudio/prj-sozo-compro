@@ -4,7 +4,7 @@ import { Navigation, Pagination } from 'swiper/modules'
 import 'swiper/css'
 import 'swiper/css/navigation'
 import 'swiper/css/pagination'
-import { usePosts, usePost, useFilteredPosts, usePostsByCategory, useInfinitePosts, useInfinitePostsByCategory } from '../hooks/usePosts'
+import { usePosts, usePost, useFilteredPosts, usePostsByCategory, useInfinitePosts, useInfinitePostsByCategory, useInfiniteSearchPosts, useInfiniteSearchPostsByCategory } from '../hooks/usePosts'
 import { WPPost } from '../services/api'
 import { useStore } from '../store/useStore'
 
@@ -24,38 +24,110 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
   // Feature toggle: set to true to use in-app modal reader; false to open posts in a new tab
   const ENABLE_MODAL = false
 
-  // Use infinite query for category tabs (non-carousel mode), regular query for carousel
-  const shouldUseInfiniteQuery = !enableCarousel && !!categoryId
+  // Determine query strategy based on props
+  const hasSearchTerm = !!searchTerm && searchTerm.trim().length > 0
+  const hasLimit = typeof limit === 'number'
+  const shouldUseInfiniteQuery = !enableCarousel && !hasLimit
+  const isSearchInCategory = hasSearchTerm && !!categoryId && !hasLimit
+  const isSearchAll = hasSearchTerm && !categoryId && !hasLimit
 
-  // Infinite query for category pagination
+  // Infinite query for search in category
+  const {
+    data: searchCategoryData,
+    isLoading: searchCategoryLoading,
+    error: searchCategoryError,
+    fetchNextPage: searchCategoryFetchNext,
+    hasNextPage: searchCategoryHasNext,
+    isFetchingNextPage: searchCategoryFetching,
+  } = useInfiniteSearchPostsByCategory(
+    isSearchInCategory ? searchTerm : undefined,
+    categoryId,
+    {}
+  )
+
+  // Infinite query for search all
+  const {
+    data: searchAllData,
+    isLoading: searchAllLoading,
+    error: searchAllError,
+    fetchNextPage: searchAllFetchNext,
+    hasNextPage: searchAllHasNext,
+    isFetchingNextPage: searchAllFetching,
+  } = useInfiniteSearchPosts(
+    isSearchAll ? searchTerm : undefined,
+    {}
+  )
+
+  // Infinite query for category pagination (no search)
   const {
     data: infiniteData,
     isLoading: infiniteLoading,
     error: infiniteError,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
+    fetchNextPage: infiniteFetchNext,
+    hasNextPage: infiniteHasNext,
+    isFetchingNextPage: infiniteFetching,
   } = useInfinitePostsByCategory(
-    shouldUseInfiniteQuery ? categoryId : undefined,
+    shouldUseInfiniteQuery && !hasSearchTerm && categoryId ? categoryId : undefined,
     {}
   )
 
-  // Regular query for carousel mode or non-category views
+  // Regular query for carousel mode or limited items
   const {
     data: allPosts,
     isLoading: loading,
     error,
-  } = usePosts(
-    { per_page: 10 },
-    { enabled: !shouldUseInfiniteQuery }
-  )
+  } = categoryId && hasLimit
+    ? usePostsByCategory(categoryId, { per_page: limit || 10 })
+    : usePosts(
+        { per_page: 10 },
+        { enabled: (enableCarousel && !hasSearchTerm) || hasLimit }
+      )
 
-  // Determine which data to use
-  const isLoading = shouldUseInfiniteQuery ? infiniteLoading : loading
-  const queryError = shouldUseInfiniteQuery ? infiniteError : error
-  const posts = shouldUseInfiniteQuery
-    ? infiniteData?.pages.flatMap(page => page) || []
-    : allPosts || []
+  // Determine which data to use based on current mode
+  let isLoading: boolean
+  let queryError: Error | null
+  let posts: any[]
+  let fetchNextPage: (() => void) | undefined
+  let hasNextPage: boolean | undefined
+  let isFetchingNextPage: boolean
+
+  if (hasLimit) {
+    // For limited items (carousel sections in "All" tab), use regular query without pagination
+    isLoading = loading
+    queryError = error
+    posts = allPosts || []
+    fetchNextPage = undefined
+    hasNextPage = undefined
+    isFetchingNextPage = false
+  } else if (isSearchInCategory) {
+    isLoading = searchCategoryLoading
+    queryError = searchCategoryError
+    posts = searchCategoryData?.pages.flatMap(page => page) || []
+    fetchNextPage = searchCategoryFetchNext
+    hasNextPage = searchCategoryHasNext
+    isFetchingNextPage = searchCategoryFetching
+  } else if (isSearchAll) {
+    isLoading = searchAllLoading
+    queryError = searchAllError
+    posts = searchAllData?.pages.flatMap(page => page) || []
+    fetchNextPage = searchAllFetchNext
+    hasNextPage = searchAllHasNext
+    isFetchingNextPage = searchAllFetching
+  } else if (shouldUseInfiniteQuery && categoryId) {
+    isLoading = infiniteLoading
+    queryError = infiniteError
+    posts = infiniteData?.pages.flatMap(page => page) || []
+    fetchNextPage = infiniteFetchNext
+    hasNextPage = infiniteHasNext
+    isFetchingNextPage = infiniteFetching
+  } else {
+    isLoading = loading
+    queryError = error
+    posts = allPosts || []
+    fetchNextPage = undefined
+    hasNextPage = undefined
+    isFetchingNextPage = false
+  }
 
   // React Query for single post modal
   const { data: modalPost, isLoading: modalLoading } = usePost(modalPostId || 0)
@@ -143,9 +215,10 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
   }
 
   // Use filtered posts; if randomize, fetch without limit, then shuffle and slice
-  const baseItems = useFilteredPosts(posts, {
+  // Note: When using search queries, we don't use client-side filtering
+  const baseItems = hasSearchTerm ? posts : useFilteredPosts(posts, {
     categoryName: categoryId ? undefined : categoryName,
-    searchTerm,
+    searchTerm: undefined, // Don't filter again client-side when using search API
     limit: randomize ? undefined : MAX_ITEMS,
   })
 
@@ -466,7 +539,7 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
           </div>
 
           {/* Load More Button for infinite query */}
-          {shouldUseInfiniteQuery && hasNextPage && (
+          {hasNextPage && fetchNextPage && (
             <div style={{ display: 'flex', justifyContent: 'center', marginTop: '24px' }}>
               <button
                 onClick={() => fetchNextPage()}
