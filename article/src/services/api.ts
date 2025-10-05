@@ -148,3 +148,69 @@ export const categoriesApi = {
     return response.data
   },
 }
+
+// Search API using WordPress Search REST API
+export type WPSearchResult = {
+  id: number
+  title: string
+  url: string
+  type: string
+  subtype: string
+  _links: any
+}
+
+export type SearchQueryParams = {
+  search: string
+  per_page?: number
+  page?: number
+  subtype?: string // 'post', 'page', etc.
+  [key: string]: any
+}
+
+export const searchApi = {
+  // Search using WordPress Search REST API
+  search: async (params: SearchQueryParams): Promise<WPSearchResult[]> => {
+    const response = await apiClient.get(`${API_CONFIG.WP_JSON_BASE}/search`, {
+      params: {
+        per_page: 10,
+        subtype: 'post', // Only search posts
+        ...params,
+      },
+    })
+
+    return response.data
+  },
+
+  // Get full post details from search results
+  getPostsFromSearchResults: async (searchResults: WPSearchResult[]): Promise<WPPost[]> => {
+    if (searchResults.length === 0) return []
+
+    // Extract post IDs from search results
+    const postIds = searchResults.map(result => result.id)
+
+    // Fetch full post details with _embed
+    const response = await apiClient.get(`${API_CONFIG.WP_JSON_BASE}${API_CONFIG.POSTS_ENDPOINT}`, {
+      params: {
+        include: postIds.join(','),
+        _embed: true,
+        per_page: postIds.length,
+      },
+    })
+
+    // Preserve the order from search results
+    const postsMap = new Map(response.data.map((post: WPPost) => [post.id, post]))
+    return postIds.map(id => postsMap.get(id)).filter(Boolean) as WPPost[]
+  },
+
+  // Combined search: search + fetch full posts in one function
+  searchPosts: async (searchQuery: string, params?: Omit<SearchQueryParams, 'search'>): Promise<WPPost[]> => {
+    const searchResults = await searchApi.search({
+      search: searchQuery,
+      ...params,
+    })
+
+    if (searchResults.length === 0) return []
+
+    return await searchApi.getPostsFromSearchResults(searchResults)
+  },
+}

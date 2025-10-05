@@ -1,6 +1,6 @@
 import React from 'react'
-import { useQuery, UseQueryResult } from '@tanstack/react-query'
-import { postsApi, categoriesApi, WPPost, WPCategory, PostsQueryParams } from '../services/api'
+import { useQuery, useInfiniteQuery, UseQueryResult, UseInfiniteQueryResult } from '@tanstack/react-query'
+import { postsApi, categoriesApi, searchApi, WPPost, WPCategory, PostsQueryParams, SearchQueryParams } from '../services/api'
 
 // Query Keys
 export const QUERY_KEYS = {
@@ -53,6 +53,99 @@ export const usePostsByCategory = (
   })
 }
 
+// Infinite query for posts with pagination
+export const useInfinitePosts = (
+  params?: Omit<PostsQueryParams, 'per_page'>,
+  options?: { enabled?: boolean }
+) => {
+  const PER_PAGE = 9
+
+  return useInfiniteQuery({
+    queryKey: ['posts-infinite', params],
+    queryFn: async ({ pageParam = 1 }) => {
+      try {
+        const result = await postsApi.getPosts({
+          ...params,
+          per_page: PER_PAGE,
+          page: pageParam
+        })
+        return result
+      } catch (error: any) {
+        // If we get a 400 error about invalid page number, return empty array
+        if (error.response?.status === 400 && error.response?.data?.code === 'rest_post_invalid_page_number') {
+          return []
+        }
+        throw error
+      }
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      // If last page has less than PER_PAGE items or is empty, no more pages
+      if (!lastPage || lastPage.length === 0 || lastPage.length < PER_PAGE) {
+        return undefined
+      }
+      return allPages.length + 1
+    },
+    initialPageParam: 1,
+    enabled: options?.enabled ?? true,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: (failureCount, error: any) => {
+      // Don't retry on 400 errors (invalid page number)
+      if (error.response?.status === 400) {
+        return false
+      }
+      return failureCount < 2
+    },
+  })
+}
+
+// Infinite query for posts by category with pagination
+export const useInfinitePostsByCategory = (
+  categoryId?: number,
+  params?: Omit<PostsQueryParams, 'per_page' | 'categories'>
+) => {
+  const PER_PAGE = 9
+
+  return useInfiniteQuery({
+    queryKey: ['posts-by-category-infinite', categoryId, params],
+    queryFn: async ({ pageParam = 1 }) => {
+      try {
+        const result = await postsApi.getPostsByCategory(categoryId!, {
+          ...params,
+          per_page: PER_PAGE,
+          page: pageParam
+        })
+        return result
+      } catch (error: any) {
+        // If we get a 400 error about invalid page number, return empty array
+        if (error.response?.status === 400 && error.response?.data?.code === 'rest_post_invalid_page_number') {
+          return []
+        }
+        throw error
+      }
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      // If last page has less than PER_PAGE items or is empty, no more pages
+      if (!lastPage || lastPage.length === 0 || lastPage.length < PER_PAGE) {
+        return undefined
+      }
+      return allPages.length + 1
+    },
+    initialPageParam: 1,
+    enabled: !!categoryId,
+    staleTime: 5 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
+    retry: (failureCount, error: any) => {
+      // Don't retry on 400 errors (invalid page number)
+      if (error.response?.status === 400) {
+        return false
+      }
+      // Retry other errors up to 2 times
+      return failureCount < 2
+    },
+  })
+}
+
 export const useSearchPosts = (
   query?: string,
   params?: PostsQueryParams
@@ -64,6 +157,107 @@ export const useSearchPosts = (
     staleTime: 2 * 60 * 1000, // 2 minutes
     gcTime: 5 * 60 * 1000, // 5 minutes
     retry: 1,
+  })
+}
+
+// Infinite query for search with pagination using WordPress Search API
+export const useInfiniteSearchPosts = (
+  searchQuery?: string,
+  params?: Omit<SearchQueryParams, 'per_page' | 'search'>
+) => {
+  const PER_PAGE = 9
+
+  return useInfiniteQuery({
+    queryKey: ['search-infinite', searchQuery, params],
+    queryFn: async ({ pageParam = 1 }) => {
+      try {
+        const result = await searchApi.searchPosts(searchQuery!, {
+          ...params,
+          per_page: PER_PAGE,
+          page: pageParam,
+          subtype: 'post',
+        })
+        return result
+      } catch (error: any) {
+        if (error.response?.status === 400 && error.response?.data?.code === 'rest_post_invalid_page_number') {
+          return []
+        }
+        throw error
+      }
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage || lastPage.length === 0 || lastPage.length < PER_PAGE) {
+        return undefined
+      }
+      return allPages.length + 1
+    },
+    initialPageParam: 1,
+    enabled: !!searchQuery && searchQuery.trim().length > 0,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    retry: (failureCount, error: any) => {
+      if (error.response?.status === 400) {
+        return false
+      }
+      return failureCount < 1
+    },
+  })
+}
+
+// Infinite query for search within a specific category
+// Note: WordPress Search API doesn't support category filtering, so we fetch all results and filter client-side
+export const useInfiniteSearchPostsByCategory = (
+  searchQuery?: string,
+  categoryId?: number,
+  params?: Omit<SearchQueryParams, 'per_page' | 'search'>
+) => {
+  const PER_PAGE = 9
+
+  return useInfiniteQuery({
+    queryKey: ['search-by-category-infinite', searchQuery, categoryId, params],
+    queryFn: async ({ pageParam = 1 }) => {
+      try {
+        // Fetch more results to account for client-side filtering
+        const result = await searchApi.searchPosts(searchQuery!, {
+          ...params,
+          per_page: PER_PAGE * 3, // Fetch 3x more to ensure enough results after filtering
+          page: pageParam,
+          subtype: 'post',
+        })
+
+        // Filter by category client-side
+        if (categoryId) {
+          const filtered = result.filter(post =>
+            post.categories?.includes(categoryId)
+          )
+          // Return only PER_PAGE items after filtering
+          return filtered.slice(0, PER_PAGE)
+        }
+
+        return result.slice(0, PER_PAGE)
+      } catch (error: any) {
+        if (error.response?.status === 400 && error.response?.data?.code === 'rest_post_invalid_page_number') {
+          return []
+        }
+        throw error
+      }
+    },
+    getNextPageParam: (lastPage, allPages) => {
+      if (!lastPage || lastPage.length === 0 || lastPage.length < PER_PAGE) {
+        return undefined
+      }
+      return allPages.length + 1
+    },
+    initialPageParam: 1,
+    enabled: !!searchQuery && searchQuery.trim().length > 0 && !!categoryId,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
+    retry: (failureCount, error: any) => {
+      if (error.response?.status === 400) {
+        return false
+      }
+      return failureCount < 1
+    },
   })
 }
 

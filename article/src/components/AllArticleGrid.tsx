@@ -4,7 +4,7 @@ import { Navigation, Pagination } from 'swiper/modules'
 import 'swiper/css'
 import 'swiper/css/navigation'
 import 'swiper/css/pagination'
-import { usePosts, usePost, useFilteredPosts, usePostsByCategory } from '../hooks/usePosts'
+import { usePosts, usePost, useFilteredPosts, usePostsByCategory, useInfinitePosts, useInfinitePostsByCategory, useInfiniteSearchPosts, useInfiniteSearchPostsByCategory } from '../hooks/usePosts'
 import { WPPost } from '../services/api'
 import { useStore } from '../store/useStore'
 
@@ -24,14 +24,110 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
   // Feature toggle: set to true to use in-app modal reader; false to open posts in a new tab
   const ENABLE_MODAL = false
 
-  // React Query for posts - server-side fetch 10 items; refetch on category change
+  // Determine query strategy based on props
+  const hasSearchTerm = !!searchTerm && searchTerm.trim().length > 0
+  const hasLimit = typeof limit === 'number'
+  const shouldUseInfiniteQuery = !enableCarousel && !hasLimit
+  const isSearchInCategory = hasSearchTerm && !!categoryId && !hasLimit
+  const isSearchAll = hasSearchTerm && !categoryId && !hasLimit
+
+  // Infinite query for search in category
+  const {
+    data: searchCategoryData,
+    isLoading: searchCategoryLoading,
+    error: searchCategoryError,
+    fetchNextPage: searchCategoryFetchNext,
+    hasNextPage: searchCategoryHasNext,
+    isFetchingNextPage: searchCategoryFetching,
+  } = useInfiniteSearchPostsByCategory(
+    isSearchInCategory ? searchTerm : undefined,
+    categoryId,
+    {}
+  )
+
+  // Infinite query for search all
+  const {
+    data: searchAllData,
+    isLoading: searchAllLoading,
+    error: searchAllError,
+    fetchNextPage: searchAllFetchNext,
+    hasNextPage: searchAllHasNext,
+    isFetchingNextPage: searchAllFetching,
+  } = useInfiniteSearchPosts(
+    isSearchAll ? searchTerm : undefined,
+    {}
+  )
+
+  // Infinite query for category pagination (no search)
+  const {
+    data: infiniteData,
+    isLoading: infiniteLoading,
+    error: infiniteError,
+    fetchNextPage: infiniteFetchNext,
+    hasNextPage: infiniteHasNext,
+    isFetchingNextPage: infiniteFetching,
+  } = useInfinitePostsByCategory(
+    shouldUseInfiniteQuery && !hasSearchTerm && categoryId ? categoryId : undefined,
+    {}
+  )
+
+  // Regular query for carousel mode or limited items
   const {
     data: allPosts,
     isLoading: loading,
     error,
-  } = categoryId
-    ? usePostsByCategory(categoryId, { per_page: 10 })
-    : usePosts({ per_page: 10 }, { enabled: !categoryId })
+  } = categoryId && hasLimit
+    ? usePostsByCategory(categoryId, { per_page: limit || 10 })
+    : usePosts(
+        { per_page: 10 },
+        { enabled: (enableCarousel && !hasSearchTerm) || hasLimit }
+      )
+
+  // Determine which data to use based on current mode
+  let isLoading: boolean
+  let queryError: Error | null
+  let posts: any[]
+  let fetchNextPage: (() => void) | undefined
+  let hasNextPage: boolean | undefined
+  let isFetchingNextPage: boolean
+
+  if (hasLimit) {
+    // For limited items (carousel sections in "All" tab), use regular query without pagination
+    isLoading = loading
+    queryError = error
+    posts = allPosts || []
+    fetchNextPage = undefined
+    hasNextPage = undefined
+    isFetchingNextPage = false
+  } else if (isSearchInCategory) {
+    isLoading = searchCategoryLoading
+    queryError = searchCategoryError
+    posts = searchCategoryData?.pages.flatMap(page => page) || []
+    fetchNextPage = searchCategoryFetchNext
+    hasNextPage = searchCategoryHasNext
+    isFetchingNextPage = searchCategoryFetching
+  } else if (isSearchAll) {
+    isLoading = searchAllLoading
+    queryError = searchAllError
+    posts = searchAllData?.pages.flatMap(page => page) || []
+    fetchNextPage = searchAllFetchNext
+    hasNextPage = searchAllHasNext
+    isFetchingNextPage = searchAllFetching
+  } else if (shouldUseInfiniteQuery && categoryId) {
+    isLoading = infiniteLoading
+    queryError = infiniteError
+    posts = infiniteData?.pages.flatMap(page => page) || []
+    fetchNextPage = infiniteFetchNext
+    hasNextPage = infiniteHasNext
+    isFetchingNextPage = infiniteFetching
+  } else {
+    isLoading = loading
+    queryError = error
+    posts = allPosts || []
+    fetchNextPage = undefined
+    hasNextPage = undefined
+    isFetchingNextPage = false
+  }
 
   // React Query for single post modal
   const { data: modalPost, isLoading: modalLoading } = usePost(modalPostId || 0)
@@ -119,9 +215,10 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
   }
 
   // Use filtered posts; if randomize, fetch without limit, then shuffle and slice
-  const baseItems = useFilteredPosts(allPosts, {
+  // Note: When using search queries, we don't use client-side filtering
+  const baseItems = hasSearchTerm ? posts : useFilteredPosts(posts, {
     categoryName: categoryId ? undefined : categoryName,
-    searchTerm,
+    searchTerm: undefined, // Don't filter again client-side when using search API
     limit: randomize ? undefined : MAX_ITEMS,
   })
 
@@ -215,7 +312,7 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
   )
 
   // Handle loading state
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="carousel-container">
         <div className="skeleton-grid">
@@ -345,8 +442,8 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
   }
 
   // Handle error state
-  if (error) {
-    return <p className="muted">Terjadi kesalahan: {error.message}</p>
+  if (queryError) {
+    return <p className="muted">Terjadi kesalahan: {queryError.message}</p>
   }
 
   // Build slides as a sliding window that moves by 1 item
@@ -436,9 +533,24 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
           ))}
         </Swiper>
       ) : (
-        <div className="static-grid">
-          {items.map(renderArticleCard)}
-        </div>
+        <>
+          <div className="static-grid">
+            {items.map(renderArticleCard)}
+          </div>
+
+          {/* Load More Button for infinite query */}
+          {hasNextPage && fetchNextPage && (
+            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '24px' }}>
+              <button
+                onClick={() => fetchNextPage()}
+                disabled={isFetchingNextPage}
+                className="load-more-btn"
+              >
+                {isFetchingNextPage ? 'Memuat...' : 'Muat Lebih Banyak'}
+              </button>
+            </div>
+          )}
+        </>
       )}
 
       {/* Custom Controls */}
@@ -561,6 +673,34 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
         .carousel-container {
           position: relative;
           margin: 16px 0;
+        }
+
+        .load-more-btn {
+          background: #1A2080;
+          color: white;
+          border: none;
+          border-radius: 999px;
+          padding: 12px 32px;
+          font-size: 16px;
+          font-weight: 500;
+          cursor: pointer;
+          transition: all 0.2s ease;
+          box-shadow: 0 2px 8px rgba(26, 32, 128, 0.2);
+        }
+
+        .load-more-btn:hover:not(:disabled) {
+          background: #151a66;
+          box-shadow: 0 4px 12px rgba(26, 32, 128, 0.3);
+          transform: translateY(-1px);
+        }
+
+        .load-more-btn:active:not(:disabled) {
+          transform: translateY(0);
+        }
+
+        .load-more-btn:disabled {
+          opacity: 0.6;
+          cursor: not-allowed;
         }
 
         .articles-swiper {
