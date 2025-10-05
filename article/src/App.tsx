@@ -113,6 +113,11 @@ export default function App() {
     }
   }, [activeTab])
 
+  // Reset search when switching tabs
+  React.useEffect(() => {
+    setQuery('')
+  }, [activeTab])
+
   // Reset category expanded when switching tabs
   React.useEffect(() => {
     // Note: Individual category expanded states are managed in Zustand store
@@ -208,14 +213,62 @@ export default function App() {
             )}
 
             <form className="searchbar" role="search" onSubmit={(e) => e.preventDefault()}>
-              <input
-                className="search-input"
-                type="search"
-                placeholder="Cari topik, treatment, atau tips..."
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
+              <div style={{ position: 'relative', width: '100%' }}>
+                <input
+                  className="search-input"
+                  type="search"
+                  placeholder="Cari topik, treatment, atau tips..."
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+                {query && (
+                  <button
+                    type="button"
+                    onClick={() => setQuery('')}
+                    className="search-clear-btn"
+                    aria-label="Clear search"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
             </form>
+
+            <style>{`
+              .searchbar {
+                position: relative;
+                width: 100%;
+              }
+
+              .search-clear-btn {
+                position: absolute;
+                right: 12px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: rgba(0, 0, 0, 0.1);
+                border: none;
+                border-radius: 50%;
+                width: 24px;
+                height: 24px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                cursor: pointer;
+                font-size: 14px;
+                color: #666;
+                transition: all 0.2s ease;
+              }
+
+              .search-clear-btn:hover {
+                background: rgba(0, 0, 0, 0.2);
+                color: #333;
+              }
+
+              .search-input {
+                width: 100%;
+                padding-right: ${query ? '40px' : '12px'};
+              }
+            `}</style>
           </div>
         </section>
 
