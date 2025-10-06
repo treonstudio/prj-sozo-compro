@@ -24,13 +24,17 @@
     // Allowed origins untuk security (whitelist iframe sources)
     allowedOrigins: [
       'https://articles-irfan.vercel.app',
-      'https://sozo.treonstudio.com/',
+      'https://sozo-article.vercel.app',
+      'https://sozo.treonstudio.com',
       'http://localhost:5173',
       'http://localhost:4173',
     ],
 
     // Selector untuk iframe
     iframeSelector: 'iframe[data-react-iframe]',
+
+    // Selector untuk parent container (optional, akan auto-detect jika tidak ada)
+    parentContainerSelector: '.iframe-target',
 
     // Minimum height (prevent collapse)
     minHeight: 400,
@@ -106,24 +110,43 @@
   function setIframeHeight(iframe, height) {
     const newHeight = Math.max(height, CONFIG.minHeight);
 
-    // Add smooth transition if not already set
-    if (!iframe.style.transition) {
-      iframe.style.transition = `height ${CONFIG.transitionDuration} ease-in-out`;
+    // Find parent container of iframe
+    const parentContainer = iframe.closest(CONFIG.parentContainerSelector) || iframe.parentElement;
+
+    if (!parentContainer) {
+      log('⚠️ Parent container not found, setting height on iframe directly');
+
+      // Fallback: set on iframe itself
+      if (!iframe.style.transition) {
+        iframe.style.transition = `height ${CONFIG.transitionDuration} ease-in-out`;
+      }
+      iframe.style.height = `${newHeight}px`;
+      return;
     }
 
-    // Set new height
-    iframe.style.height = `${newHeight}px`;
+    // Add smooth transition to parent container if not already set
+    if (!parentContainer.style.transition || !parentContainer.style.transition.includes('height')) {
+      const existingTransition = parentContainer.style.transition || '';
+      parentContainer.style.transition = existingTransition
+        ? `${existingTransition}, height ${CONFIG.transitionDuration} ease-in-out`
+        : `height ${CONFIG.transitionDuration} ease-in-out`;
+    }
 
-    log('📐 Set iframe height:', {
-      element: iframe,
+    // Set new height on parent container
+    parentContainer.style.height = `${newHeight}px`;
+
+    log('📐 Set parent container height:', {
+      parentElement: parentContainer,
+      iframeElement: iframe,
       height: newHeight,
-      previousHeight: iframe.offsetHeight,
+      previousHeight: parentContainer.offsetHeight,
     });
 
     // Dispatch custom event for other scripts to hook into
     const customEvent = new CustomEvent('iframeHeightChanged', {
       detail: {
         iframe,
+        parentContainer,
         height: newHeight,
         timestamp: Date.now(),
       },
@@ -133,11 +156,27 @@
 
   // Initialize iframe
   function initializeIframe(iframe) {
-    // Set initial styles
+    // Find parent container
+    const parentContainer = iframe.closest(CONFIG.parentContainerSelector) || iframe.parentElement;
+
+    // Set initial styles on parent container
+    if (parentContainer) {
+      parentContainer.style.position = parentContainer.style.position || 'relative';
+      parentContainer.style.width = parentContainer.style.width || '100%';
+      parentContainer.style.minHeight = `${CONFIG.minHeight}px`;
+      parentContainer.style.overflow = 'hidden';
+
+      log('🔧 Parent container found and styled:', parentContainer);
+    }
+
+    // Set initial styles on iframe
+    iframe.style.position = 'absolute';
+    iframe.style.top = '0';
+    iframe.style.left = '0';
     iframe.style.width = '100%';
+    iframe.style.height = '100%';
     iframe.style.border = '0';
     iframe.style.display = 'block';
-    iframe.style.minHeight = `${CONFIG.minHeight}px`;
 
     // Send ready signal to iframe
     iframe.addEventListener('load', function() {
