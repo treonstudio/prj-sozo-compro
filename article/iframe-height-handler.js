@@ -24,6 +24,7 @@
     // Allowed origins untuk security (whitelist iframe sources)
     allowedOrigins: [
       'https://articles-irfan.vercel.app',
+      'https://sozo.treonstudio.com/',
       'http://localhost:5173',
       'http://localhost:4173',
     ],
