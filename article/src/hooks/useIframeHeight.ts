@@ -102,3 +102,43 @@ export const useElementHeightObserver = (
     }
   }, [enabled, elementRef, sendHeightToParent])
 }
+
+/**
+ * Hook to automatically observe #root element height changes
+ * Sends postMessage whenever #root height changes
+ */
+export const useRootHeightObserver = () => {
+  const { sendHeightToParent } = useIframeHeight()
+
+  useEffect(() => {
+    const rootElement = document.getElementById('root')
+
+    if (!rootElement) {
+      console.warn('[useRootHeightObserver] #root element not found')
+      return
+    }
+
+    console.log('[useRootHeightObserver] Observing #root element height changes')
+
+    // Create ResizeObserver to watch #root
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const height = entry.target.scrollHeight
+        console.log('[useRootHeightObserver] #root height changed:', height)
+        sendHeightToParent()
+      }
+    })
+
+    // Start observing
+    resizeObserver.observe(rootElement)
+
+    // Send initial height
+    sendHeightToParent()
+
+    // Cleanup
+    return () => {
+      resizeObserver.disconnect()
+      console.log('[useRootHeightObserver] Stopped observing #root')
+    }
+  }, [sendHeightToParent])
+}

@@ -4,6 +4,7 @@ import { AllArticleGrid } from './components/AllArticleGrid'
 import { useCategoriesAsTabs, useCategories } from './hooks/usePosts'
 import { useStore } from './store/useStore'
 import { useDebounce } from './hooks/useDebounce'
+import { useRootHeightObserver } from './hooks/useIframeHeight'
 
 export default function App() {
   const [activeTab, setActiveTab] = React.useState('all')
@@ -19,6 +20,9 @@ export default function App() {
     categoryExpanded,
     setCategoryExpanded
   } = useStore()
+
+  // Auto-observe #root height changes and send to parent
+  useRootHeightObserver()
 
   // Get dynamic tabs from WordPress categories
   const { tabs, isLoading: tabsLoading, error: tabsError } = useCategoriesAsTabs()

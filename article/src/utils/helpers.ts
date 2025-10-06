@@ -45,8 +45,26 @@ export const getCategoryName = (post: WPPost): string => {
 
 /**
  * Calculate document height for iframe communication
+ * Prioritizes #root element height if available
  */
 export const getDocumentHeight = (): number => {
+  // Try to get height from #root element first
+  const rootElement = document.getElementById('root')
+
+  if (rootElement) {
+    const rootHeight = Math.max(
+      rootElement.scrollHeight,
+      rootElement.offsetHeight,
+      rootElement.clientHeight
+    )
+
+    // Return root height if it's valid (greater than 0)
+    if (rootHeight > 0) {
+      return rootHeight
+    }
+  }
+
+  // Fallback to document height if root not found or has no height
   const doc = document
   return Math.max(
     doc.body.scrollHeight,
