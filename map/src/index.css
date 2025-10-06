@@ -1,3 +1,16 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Utility: hide scrollbar (used for horizontal chip scroller) */
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar { display: none; }
+  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+  .overflow-x-touch { -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+}
+
+/* Prevent page scroll; only internal panels manage their own scroll */
+html, body, #root {
+  height: 100%;
+  overflow: hidden; /* both axes */
+}

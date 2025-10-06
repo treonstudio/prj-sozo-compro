@@ -9,10 +9,17 @@ export interface Clinic {
   services: string[];
   rating: number;
   image: string;
+  maps?: string; // manual Google Maps URL if provided by API
+}
+
+export interface City {
+  name: string;
+  count: number;
 }
 
 export interface Region {
   id: string;
   name: string;
-  cities: string[];
+  clinic_count: number;
+  cities: City[];
 }
