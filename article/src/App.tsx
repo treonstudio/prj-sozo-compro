@@ -283,60 +283,62 @@ export default function App() {
           </div>
         </section>
 
-        {activeTab === 'all' && !debouncedQuery && (
-          <section aria-labelledby="featured-articles" className="articles-section">
-            <div className="section-head">
-              <h2 id="featured-articles">Artikel Terbaru</h2>
-            </div>
-            <AllArticleGrid enableCarousel={true} />
-          </section>
-        )}
+        <div className="content-wrapper">
+          {activeTab === 'all' && !debouncedQuery && (
+            <section aria-labelledby="featured-articles" className="articles-section">
+              <div className="section-head">
+                <h2 id="featured-articles">Artikel Terbaru</h2>
+              </div>
+              <AllArticleGrid enableCarousel={true} />
+            </section>
+          )}
 
-        {activeTab === 'all' && !debouncedQuery && categories && categories.length > 0 && (
-          <>
-            {categories.map((cat) => (
-              <section key={cat.id} aria-labelledby={`cat-${cat.slug}`} className="articles-section">
-                <div className="section-head">
-                  <h2 id={`cat-${cat.slug}`}>{cat.name}</h2>
-                  <a
-                    href={`https://sozo.treonstudio.com/category/${cat.slug}`}
-                    className="see-all"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Lihat Semua
-                  </a>
-                </div>
-                <AllArticleGrid categoryId={cat.id} limit={3} enableCarousel={false} randomize={true} />
-              </section>
-            ))}
-          </>
-        )}
+          {activeTab === 'all' && !debouncedQuery && categories && categories.length > 0 && (
+            <>
+              {categories.map((cat) => (
+                <section key={cat.id} aria-labelledby={`cat-${cat.slug}`} className="articles-section">
+                  <div className="section-head">
+                    <h2 id={`cat-${cat.slug}`}>{cat.name}</h2>
+                    <a
+                      href={`https://sozo.treonstudio.com/category/${cat.slug}`}
+                      className="see-all"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Lihat Semua
+                    </a>
+                  </div>
+                  <AllArticleGrid categoryId={cat.id} limit={3} enableCarousel={false} randomize={true} />
+                </section>
+              ))}
+            </>
+          )}
 
-        {activeTab === 'all' && debouncedQuery && (
-          <section aria-labelledby="search-results" className="articles-section">
-            <div className="section-head">
-              <h2 id="search-results">Hasil Pencarian: "{debouncedQuery}"</h2>
-            </div>
-            <AllArticleGrid searchTerm={debouncedQuery} enableCarousel={false} />
-          </section>
-        )}
+          {activeTab === 'all' && debouncedQuery && (
+            <section aria-labelledby="search-results" className="articles-section">
+              <div className="section-head">
+                <h2 id="search-results">Hasil Pencarian: "{debouncedQuery}"</h2>
+              </div>
+              <AllArticleGrid searchTerm={debouncedQuery} enableCarousel={false} />
+            </section>
+          )}
 
-        {activeTab !== 'all' && (
-          <section aria-labelledby="category-section" className="articles-section fade-in">
-            <div className="section-head">
-              <h2 id="category-section">
-                {categories?.find(c => c.slug === activeTab)?.name || categoryFromTab(activeTab)}
-                {debouncedQuery && ` - "${debouncedQuery}"`}
-              </h2>
-            </div>
-            <AllArticleGrid
-              categoryId={categories?.find(c => c.slug === activeTab)?.id}
-              searchTerm={debouncedQuery}
-              enableCarousel={false}
-            />
-          </section>
-        )}
+          {activeTab !== 'all' && (
+            <section aria-labelledby="category-section" className="articles-section fade-in">
+              <div className="section-head">
+                <h2 id="category-section">
+                  {categories?.find(c => c.slug === activeTab)?.name || categoryFromTab(activeTab)}
+                  {debouncedQuery && ` - "${debouncedQuery}"`}
+                </h2>
+              </div>
+              <AllArticleGrid
+                categoryId={categories?.find(c => c.slug === activeTab)?.id}
+                searchTerm={debouncedQuery}
+                enableCarousel={false}
+              />
+            </section>
+          )}
+        </div>
       </main>
     </div>
   )

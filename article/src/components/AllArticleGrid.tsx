@@ -1,9 +1,8 @@
 import React from 'react'
 import { Swiper, SwiperSlide } from 'swiper/react'
-import { Navigation, Pagination } from 'swiper/modules'
+import { Pagination } from 'swiper/modules'
 import { ArrowLeft, ArrowRight } from 'lucide-react'
 import 'swiper/css'
-import 'swiper/css/navigation'
 import 'swiper/css/pagination'
 import { usePosts, usePost, useFilteredPosts, usePostsByCategory, useInfinitePosts, useInfinitePostsByCategory, useInfiniteSearchPosts, useInfiniteSearchPostsByCategory } from '../hooks/usePosts'
 import { WPPost } from '../services/api'
@@ -140,8 +139,10 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
   const isDark = React.useMemo(() => new URLSearchParams(window.location.search).get('theme') === 'dark', [])
 
   // Carousel settings - responsive
-  const GROUP_SIZE = 3 // modulus 3 across devices
-  const MAX_ITEMS = typeof limit === 'number' ? limit : 10
+  // Desktop: max 10 items, 3 per slide with 0.5 peek
+  // Mobile: max 3 items, 1 per slide
+  const MAX_ITEMS = typeof limit === 'number' ? limit : (isMobile ? 3 : 10)
+  const ITEMS_PER_SLIDE = isMobile ? 1 : 3
 
   // When modal open/close or loading changes, ask parent to resize iframe
   React.useEffect(() => {
@@ -447,18 +448,8 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
     return <p className="muted">Terjadi kesalahan: {queryError.message}</p>
   }
 
-  // Build slides as a sliding window that moves by 1 item
-  const sliceSize = isMobile ? 1 : GROUP_SIZE
-  const pages: WPPost[][] = []
-  if (items.length > 0) {
-    const lastStart = Math.max(0, items.length - sliceSize)
-    for (let i = 0; i <= lastStart; i += 1) {
-      pages.push(items.slice(i, i + sliceSize))
-    }
-  }
-
-  // Determine if carousel needed (more than one slide)
-  const needsCarousel = enableCarousel && pages.length > 1
+  // Determine if carousel needed
+  const needsCarousel = enableCarousel && items.length > ITEMS_PER_SLIDE
 
   const renderArticleCard = (p: WPPost) => (
     <article key={p.id} className="carousel-card">
@@ -512,27 +503,42 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
   return (
     <div className="carousel-container">
       {needsCarousel ? (
-        <Swiper
-          modules={[Navigation, Pagination]}
-          spaceBetween={0}
-          slidesPerView={1}
-          allowTouchMove={true}
-          navigation={{
-            nextEl: '.swiper-button-next-custom',
-            prevEl: '.swiper-button-prev-custom',
-          }}
-          onSwiper={(sw) => setSwiperRef(sw)}
-          onSlideChange={(sw) => setActiveIndex(sw.activeIndex)}
-          className="articles-swiper"
-        >
-          {pages.map((group, idx) => (
-            <SwiperSlide key={idx}>
-              <div className="slide-grid">
-                {group.map(renderArticleCard)}
-              </div>
+        <div className="carousel-wrapper">
+          <Swiper
+            modules={[Pagination]}
+            spaceBetween={16}
+            slidesPerView={isMobile ? 1 : 3.5}
+            slidesPerGroup={isMobile ? 1 : 3}
+            allowTouchMove={true}
+            speed={300}
+            onSwiper={(sw) => setSwiperRef(sw)}
+            onSlideChange={(sw) => setActiveIndex(sw.activeIndex)}
+            className="articles-swiper"
+            breakpoints={{
+              320: {
+                slidesPerView: 1,
+                slidesPerGroup: 1,
+                spaceBetween: 16,
+              },
+              768: {
+                slidesPerView: 2.5,
+                slidesPerGroup: 2,
+                spaceBetween: 16,
+              },
+              1024: {
+                slidesPerView: 3.5,
+                slidesPerGroup: 3,
+                spaceBetween: 16,
+              },
+            }}
+          >
+          {items.map((post) => (
+            <SwiperSlide key={post.id}>
+              {renderArticleCard(post)}
             </SwiperSlide>
           ))}
         </Swiper>
+        </div>
       ) : (
         <>
           <div className="static-grid">
@@ -559,34 +565,69 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
         <div className="carousel-controls">
           <div className="swiper-pagination-custom">
             {(() => {
-              const lastStart = Math.max(0, items.length - sliceSize)
-              const cappedStart = Math.min(activeIndex, lastStart)
-              const totalPages = Math.ceil(items.length / GROUP_SIZE)
-              const activePage = Math.min(Math.floor((cappedStart + GROUP_SIZE - 1) / GROUP_SIZE), totalPages - 1)
-              const maxDots = 3
-              const visible = Math.min(totalPages, maxDots)
-              const half = Math.floor(visible / 2)
-              let start = activePage - half
-              start = Math.max(0, Math.min(start, totalPages - visible))
-              const arr = Array.from({ length: visible }, (_, k) => start + k)
-              return arr.map((pageIdx) => {
-                const isActive = pageIdx === activePage
-                const targetStart = Math.min(pageIdx * GROUP_SIZE, lastStart)
+              const totalSlides = items.length
+              const slidesPerGroup = isMobile ? 1 : 3
+              const slidesPerView = isMobile ? 1 : 3.5
+
+              // Calculate number of dots based on valid slide positions
+              // For 10 items with 3.5 view and group of 3:
+              // - Position 0: shows items 0,1,2 + peek 3
+              // - Position 3: shows items 3,4,5 + peek 6
+              // - Position 6: shows items 6,7,8 + peek 9
+              // Total = 3 dots (last group starts at index 6, which is 10-3-1 = 6)
+              //
+              // Formula: How many full groups can we show?
+              // We need at least slidesPerGroup items remaining to show a full group
+              // Last valid start position = totalSlides - slidesPerGroup
+              // Number of groups = floor(lastPosition / slidesPerGroup) + 1
+              const lastValidPosition = Math.max(0, totalSlides - slidesPerGroup)
+              const totalPages = Math.floor(lastValidPosition / slidesPerGroup) + 1
+
+              // Determine which dot should be active based on activeIndex
+              const currentPage = Math.min(
+                Math.floor(activeIndex / slidesPerGroup),
+                totalPages - 1
+              )
+
+              return Array.from({ length: totalPages }).map((_, idx) => {
+                const isActive = idx === currentPage
                 return (
                   <span
-                    key={pageIdx}
+                    key={idx}
                     className={`swiper-pagination-bullet${isActive ? ' swiper-pagination-bullet-active' : ''}`}
-                    onClick={() => swiperRef && swiperRef.slideTo(targetStart)}
+                    onClick={() => {
+                      if (swiperRef) {
+                        // Slide to the start of the group
+                        const targetIndex = idx * slidesPerGroup
+                        swiperRef.slideTo(targetIndex)
+                      }
+                    }}
                   />
                 )
               })
             })()}
           </div>
           <div className="navigation-buttons">
-            <button className="swiper-button-prev-custom" onClick={() => swiperRef && swiperRef.slidePrev()}>
+            <button
+              className="swiper-button-prev-custom"
+              onClick={() => {
+                if (swiperRef && !swiperRef.isBeginning) {
+                  swiperRef.slidePrev()
+                }
+              }}
+              disabled={!swiperRef || activeIndex === 0}
+            >
               <ArrowLeft size={16} strokeWidth={2.5} />
             </button>
-            <button className="swiper-button-next-custom" onClick={() => swiperRef && swiperRef.slideNext()}>
+            <button
+              className="swiper-button-next-custom"
+              onClick={() => {
+                if (swiperRef && !swiperRef.isEnd) {
+                  swiperRef.slideNext()
+                }
+              }}
+              disabled={!swiperRef || (swiperRef && swiperRef.isEnd)}
+            >
               <ArrowRight size={16} strokeWidth={2.5} />
             </button>
           </div>
@@ -680,6 +721,11 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
           margin: 16px 0;
         }
 
+        .carousel-wrapper {
+          overflow: hidden;
+          position: relative;
+        }
+
         .load-more-btn {
           background: #1A2080;
           color: white;
@@ -709,15 +755,24 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
         }
 
         .articles-swiper {
-          overflow: hidden;
-          margin: 0 -8px;
+          overflow: visible;
+          margin: 0;
         }
 
-        .slide-grid, .static-grid {
+        .swiper-slide {
+          height: auto;
+          box-sizing: border-box;
+          display: flex;
+        }
+
+        .swiper-wrapper {
+          align-items: stretch;
+        }
+
+        .static-grid {
           display: grid;
           grid-template-columns: repeat(${isMobile ? 1 : 3}, 1fr);
           gap: 16px;
-          padding: 0 8px;
         }
 
         .carousel-card {
@@ -727,6 +782,8 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
           overflow: hidden;
           display: flex;
           flex-direction: column;
+          height: 100%;
+          width: 100%;
         }
 
         .carousel-thumb {
