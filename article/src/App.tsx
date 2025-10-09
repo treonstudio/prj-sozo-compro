@@ -279,6 +279,16 @@ export default function App() {
                 width: 100%;
                 padding-right: ${query ? '40px' : '12px'};
               }
+
+              /* Hide browser's default clear button */
+              .search-input::-webkit-search-cancel-button {
+                -webkit-appearance: none;
+                appearance: none;
+              }
+
+              .search-input::-ms-clear {
+                display: none;
+              }
             `}</style>
           </div>
         </section>
@@ -308,7 +318,7 @@ export default function App() {
                       Lihat Semua
                     </a>
                   </div>
-                  <AllArticleGrid categoryId={cat.id} limit={3} enableCarousel={false} randomize={true} />
+                  <AllArticleGrid categoryId={cat.id} limit={10} enableCarousel={true} randomize={true} />
                 </section>
               ))}
             </>
