@@ -140,8 +140,8 @@ export const AllArticleGrid: React.FC<Props> = ({ categoryId, categoryName, sear
 
   // Carousel settings - responsive
   // Desktop: max 10 items, 3 per slide with 0.5 peek
-  // Mobile: max 3 items, 1 per slide
-  const MAX_ITEMS = typeof limit === 'number' ? limit : (isMobile ? 3 : 10)
+  // Mobile: max 10 items, 1 per slide
+  const MAX_ITEMS = typeof limit === 'number' ? limit : 10
   const ITEMS_PER_SLIDE = isMobile ? 1 : 3
 
   // When modal open/close or loading changes, ask parent to resize iframe
