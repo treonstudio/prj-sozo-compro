@@ -235,7 +235,7 @@ export const CategoryCarousel: React.FC<Props> = ({ categoryId, categorySlug, ca
         <h2>{categoryName}</h2>
         <div className="section-actions">
           <a
-            href={`https://sozoskinclinic.com/category/${categorySlug}`}
+            href={`https://sozoskinclinic.com/blog/category/${categorySlug}`}
             className={`see-all category-link ${needsCarousel ? 'desktop-only' : ''}`}
             target="_blank"
             rel="noopener noreferrer"
@@ -291,7 +291,7 @@ export const CategoryCarousel: React.FC<Props> = ({ categoryId, categorySlug, ca
         {needsCarousel && (
           <div className="mobile-see-all">
             <a
-              href={`https://sozoskinclinic.com/category/${categorySlug}`}
+              href={`https://sozoskinclinic.com/blog/category/${categorySlug}`}
               className="see-all category-link mobile-link"
               target="_blank"
               rel="noopener noreferrer"

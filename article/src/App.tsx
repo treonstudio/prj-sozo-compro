@@ -310,7 +310,7 @@ export default function App() {
                   <div className="section-head">
                     <h2 id={`cat-${cat.slug}`}>{cat.name}</h2>
                     <a
-                      href={`https://sozoskinclinic.com/category/${cat.slug}`}
+                      href={`https://sozoskinclinic.com/blog/category/${cat.slug}`}
                       className="see-all"
                       target="_blank"
                       rel="noopener noreferrer"

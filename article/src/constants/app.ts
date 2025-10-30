@@ -30,7 +30,7 @@ export const FEATURES = {
 // External URLs
 export const EXTERNAL_URLS = {
   WORDPRESS_BASE: 'https://sozoskinclinic.com',
-  getCategoryUrl: (slug: string) => `https://sozoskinclinic.com/category/${slug}`,
+  getCategoryUrl: (slug: string) => `https://sozoskinclinic.com/blog/category/${slug}`,
 } as const
 
 // Message Types for WordPress iframe communication
