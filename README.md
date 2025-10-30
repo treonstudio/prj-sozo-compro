@@ -145,7 +145,7 @@ This project is licensed under the GPL v2 or later - see individual module docum
 
 Sozo is a modern company focused on delivering innovative web solutions. This modular platform demonstrates our commitment to scalable, maintainable, and user-focused web development.
 
-**Website**: [sozo.treonstudio.com](https://sozo.treonstudio.com)
+**Website**: [sozoskinclinic.com](https://sozoskinclinic.com)
 
 ---
 

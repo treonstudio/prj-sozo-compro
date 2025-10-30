@@ -25,7 +25,7 @@
     allowedOrigins: [
       'https://articles-irfan.vercel.app',
       'https://sozo-article.vercel.app',
-      'https://sozo.treonstudio.com',
+      'https://sozoskinclinic.com',
       'http://localhost:5173',
       'http://localhost:4173',
     ],

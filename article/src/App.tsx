@@ -70,7 +70,7 @@ export default function App() {
       }
 
       // Only send to production WordPress site, skip localhost
-      if (!parentOrigin.includes('sozo.treonstudio.com')) {
+      if (!parentOrigin.includes('sozoskinclinic.com')) {
         console.log('[RAD][React] skipping POST to WP (not production environment)')
         return
       }
@@ -144,7 +144,7 @@ export default function App() {
         origin: event.origin,
         data: event.data,
       })
-      // if (event.origin !== 'https://sozo.treonstudio.com') {
+      // if (event.origin !== 'https://sozoskinclinic.com') {
       //   console.log('[RAD][React] ignored message due to origin mismatch')
       //   return
       // }
@@ -310,7 +310,7 @@ export default function App() {
                   <div className="section-head">
                     <h2 id={`cat-${cat.slug}`}>{cat.name}</h2>
                     <a
-                      href={`https://sozo.treonstudio.com/category/${cat.slug}`}
+                      href={`https://sozoskinclinic.com/category/${cat.slug}`}
                       className="see-all"
                       target="_blank"
                       rel="noopener noreferrer"

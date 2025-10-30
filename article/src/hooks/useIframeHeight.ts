@@ -37,7 +37,7 @@ export const useIframeHeight = (dependencies: any[] = []) => {
 
       // Also notify WordPress via REST for server-side observability
       // Only send if parentOrigin is the production WordPress site
-      if (parentOrigin && parentOrigin.includes('sozo.treonstudio.com')) {
+      if (parentOrigin && parentOrigin.includes('sozoskinclinic.com')) {
         const url =
           parentOrigin.replace(/\/$/, '') +
           '/wp-json/react-articles/v1/height'

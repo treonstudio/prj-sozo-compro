@@ -29,8 +29,8 @@ export const FEATURES = {
 
 // External URLs
 export const EXTERNAL_URLS = {
-  WORDPRESS_BASE: 'https://sozo.treonstudio.com',
-  getCategoryUrl: (slug: string) => `https://sozo.treonstudio.com/category/${slug}`,
+  WORDPRESS_BASE: 'https://sozoskinclinic.com',
+  getCategoryUrl: (slug: string) => `https://sozoskinclinic.com/category/${slug}`,
 } as const
 
 // Message Types for WordPress iframe communication

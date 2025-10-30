@@ -1,6 +1,6 @@
 // API Configuration Constants
 export const API_CONFIG = {
-  BASE_URL: 'https://sozo.treonstudio.com',
+  BASE_URL: 'https://sozoskinclinic.com',
   WP_JSON_BASE: '/wp-json/wp/v2',
   POSTS_ENDPOINT: '/posts',
   CATEGORIES_ENDPOINT: '/categories',
